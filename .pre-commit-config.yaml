@@ -1,0 +1,13 @@
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.2
+    hooks:
+      - id: gitleaks
+  - repo: local
+    hooks:
+      - id: no-absolute-paths
+        name: No Absolute Paths
+        entry: '(/Users/|/home/|C:\\Users\\)'
+        language: pygrep
+        types: [text]
+        exclude: .pre-commit-config.yaml
