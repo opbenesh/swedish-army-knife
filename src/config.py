@@ -6,9 +6,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings:
-    SPOTIPY_CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
-    SPOTIPY_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
-    SPOTIPY_REDIRECT_URI = os.getenv("SPOTIPY_REDIRECT_URI", "http://localhost:8888/callback")
+    @property
+    def SPOTIPY_CLIENT_ID(self):
+        return os.getenv("SPOTIPY_CLIENT_ID")
+
+    @property
+    def SPOTIPY_CLIENT_SECRET(self):
+        return os.getenv("SPOTIPY_CLIENT_SECRET")
+
+    @property
+    def SPOTIPY_REDIRECT_URI(self):
+        return os.getenv("SPOTIPY_REDIRECT_URI", "http://localhost:8888/callback")
     
     @property
     def is_spotify_configured(self) -> bool:

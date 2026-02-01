@@ -35,3 +35,9 @@ ENV/
 
 # OS
 .DS_Store
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/

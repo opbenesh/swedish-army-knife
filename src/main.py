@@ -12,6 +12,10 @@ playlist_app = typer.Typer(help="Playlist management commands.")
 app.add_typer(playlist_app, name="playlist")
 
 console = Console()
+err_console = Console(stderr=True)
+
+def is_interactive():
+    return sys.stdin.isatty()
 
 @app.command()
 def status():
@@ -21,7 +25,7 @@ def status():
         user = sp.current_user()
         console.print(f"[bold green]Connected![/] Logged in as: [cyan]{user['display_name']}[/] ({user['id']})")
     except Exception as e:
-        console.print(f"[bold red]Status Failed:[/] {str(e)}")
+        err_console.print(f"[bold red]Status Failed:[/] {str(e)}")
 
 @playlist_app.command(name="move")
 def move(
@@ -32,14 +36,14 @@ def move(
     """Move tracks from one playlist to another. Reads track URIs from file or stdin."""
     if tracks_file:
         if not tracks_file.exists():
-            console.print(f"[bold red]Error:[/] File {tracks_file} does not exist.")
+            err_console.print(f"[bold red]Error:[/] File {tracks_file} does not exist.")
             raise typer.Exit(1)
         with open(tracks_file, "r") as f:
             tracks = [line.strip() for line in f if line.strip()]
     else:
         # Read from stdin
-        if sys.stdin.isatty():
-            console.print("[bold red]Error:[/] No input provided. Use --file or pipe track URIs via stdin.")
+        if is_interactive():
+            err_console.print("[bold red]Error:[/] No input provided. Use --file or pipe track URIs via stdin.")
             raise typer.Exit(1)
         tracks = [line.strip() for line in sys.stdin if line.strip()]
         
@@ -51,19 +55,19 @@ def move(
         sp = get_spotify()
         do_move_tracks(sp, tracks, source, dest)
     except Exception as e:
-        console.print(f"[bold red]Move Failed:[/] {str(e)}")
+        err_console.print(f"[bold red]Move Failed:[/] {str(e)}")
 
 @playlist_app.command(name="search")
 def search():
     """Search for tracks and output their URIs. Reads 'Artist - Title' lines from stdin."""
-    if sys.stdin.isatty():
-        console.print("[bold red]Error:[/] No input provided. Pipe 'Artist - Title' lines via stdin.")
+    if is_interactive():
+        err_console.print("[bold red]Error:[/] No input provided. Pipe 'Artist - Title' lines via stdin.")
         raise typer.Exit(1)
     
     try:
         sp = get_spotify()
     except Exception as e:
-        console.print(f"[bold red]Connection Failed:[/] {str(e)}")
+        err_console.print(f"[bold red]Connection Failed:[/] {str(e)}")
         raise typer.Exit(1)
     
     for line in sys.stdin:
@@ -73,7 +77,7 @@ def search():
         
         # Parse "Artist - Title" format
         if " - " not in line:
-            console.print(f"[yellow]Skipping invalid format:[/] {line}", err=True)
+            err_console.print(f"[yellow]Skipping invalid format:[/] {line}")
             continue
             
         artist, title = line.split(" - ", 1)
@@ -83,7 +87,7 @@ def search():
             uri = result['tracks']['items'][0]['uri']
             print(uri)  # Output to stdout for piping
         else:
-            console.print(f"[red]Not found:[/] {artist} - {title}", err=True)
+            err_console.print(f"[red]Not found:[/] {artist} - {title}")
 
 if __name__ == "__main__":
     app()
