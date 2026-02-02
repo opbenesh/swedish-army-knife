@@ -5,12 +5,13 @@ import sys
 from rich.console import Console
 
 console = Console()
+err_console = Console(stderr=True)
 
 class SpotifyClient:
     def __init__(self, scope: str = "playlist-modify-public playlist-modify-private"):
         if not settings.is_spotify_configured:
-            console.print("[bold red]Error:[/] Spotify credentials not found in .env file.")
-            console.print("Please update .env with SPOTIPY_CLIENT_ID and SPOTIPY_CLIENT_SECRET.")
+            err_console.print("[bold red]Error:[/] Spotify credentials not found in .env file.")
+            err_console.print("Please update .env with SPOTIPY_CLIENT_ID and SPOTIPY_CLIENT_SECRET.")
             sys.exit(1)
             
         self.sp_oauth = SpotifyOAuth(
