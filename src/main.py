@@ -1,5 +1,6 @@
 import typer
 import sys
+import concurrent.futures
 from pathlib import Path
 from typing import Optional
 from rich.console import Console
@@ -57,6 +58,29 @@ def move(
     except Exception as e:
         err_console.print(f"[bold red]Move Failed:[/] {str(e)}")
 
+def _search_worker(sp, line: str):
+    line = line.strip()
+    if not line:
+        return None
+
+    # Parse "Artist - Title" format
+    if " - " not in line:
+        console.print(f"[yellow]Skipping invalid format:[/] {line}", err=True)
+        return None
+
+    artist, title = line.split(" - ", 1)
+    try:
+        result = sp.search(q=f'artist:{artist} track:{title}', type='track', limit=1)
+
+        if result['tracks']['items']:
+            return result['tracks']['items'][0]['uri']
+        else:
+            console.print(f"[red]Not found:[/] {artist} - {title}", err=True)
+            return None
+    except Exception as e:
+        console.print(f"[red]Error searching for:[/] {line} - {str(e)}", err=True)
+        return None
+
 @playlist_app.command(name="search")
 def search():
     """Search for tracks and output their URIs. Reads 'Artist - Title' lines from stdin."""
@@ -70,24 +94,18 @@ def search():
         err_console.print(f"[bold red]Connection Failed:[/] {str(e)}")
         raise typer.Exit(1)
     
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
+    lines = sys.stdin.readlines()
+
+    # Use ThreadPoolExecutor for parallel processing
+    # Limit workers to avoid rate limits
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        # Submit all tasks and preserve order
+        futures = [executor.submit(_search_worker, sp, line) for line in lines]
         
-        # Parse "Artist - Title" format
-        if " - " not in line:
-            err_console.print(f"[yellow]Skipping invalid format:[/] {line}")
-            continue
-            
-        artist, title = line.split(" - ", 1)
-        result = sp.search(q=f'artist:{artist} track:{title}', type='track', limit=1)
-        
-        if result['tracks']['items']:
-            uri = result['tracks']['items'][0]['uri']
-            print(uri)  # Output to stdout for piping
-        else:
-            err_console.print(f"[red]Not found:[/] {artist} - {title}")
+        for future in futures:
+            result = future.result()
+            if result:
+                print(result)
 
 @playlist_app.command(name="list")
 def list_tracks(
