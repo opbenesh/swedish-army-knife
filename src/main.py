@@ -65,7 +65,7 @@ def _search_worker(sp, line: str):
 
     # Parse "Artist - Title" format
     if " - " not in line:
-        console.print(f"[yellow]Skipping invalid format:[/] {line}", err=True)
+        err_console.print(f"[yellow]Skipping invalid format:[/] {line}")
         return None
 
     artist, title = line.split(" - ", 1)
@@ -75,10 +75,10 @@ def _search_worker(sp, line: str):
         if result['tracks']['items']:
             return result['tracks']['items'][0]['uri']
         else:
-            console.print(f"[red]Not found:[/] {artist} - {title}", err=True)
+            err_console.print(f"[red]Not found:[/] {artist} - {title}")
             return None
     except Exception as e:
-        console.print(f"[red]Error searching for:[/] {line} - {str(e)}", err=True)
+        err_console.print(f"[red]Error searching for:[/] {line} - {str(e)}")
         return None
 
 @playlist_app.command(name="search")
