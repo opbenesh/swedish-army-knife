@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swedish-army-knife"
+version = "0.1.0"
+description = "A personal CLI toolkit for Spotify playlist automation"
+requires-python = ">=3.9"
+dependencies = [
+    "spotipy",
+    "typer",
+    "rich",
+    "python-dotenv",
+]
+
+[project.scripts]
+sak = "src.main:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

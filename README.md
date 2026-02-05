@@ -7,9 +7,11 @@
 
 ## ✨ Features
 
-- **Move Tracks** — Bulk move tracks between playlists with a single command
-- **Efficient** — Batches API calls (100 tracks per request) to stay fast and avoid rate limits
-- **Secure** — Pre-commit hooks detect secrets before they're committed
+- **List Tracks** — Export playlist contents as `Artist - Title` lines
+- **Search Tracks** — Find Spotify URIs from `Artist - Title` input
+- **Move Tracks** — Bulk move tracks between playlists
+- **Pipeable** — Unix-friendly: pipe commands together for powerful workflows
+- **Efficient** — Batches API calls (100 tracks per request) to avoid rate limits
 
 ## 🚀 Quick Start
 
@@ -20,7 +22,7 @@ git clone https://github.com/opbenesh/swedish-army-knife.git
 cd swedish-army-knife
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ### 2. Configure Spotify Credentials
@@ -37,26 +39,46 @@ cp .env.example .env
 ### 3. Verify Connection
 
 ```bash
-python -m src.main status
+sak status
 ```
 
 On first run, a browser window will open for Spotify OAuth authorization.
 
 ## 📖 Usage
 
-### Move Tracks Between Playlists
-
-Create a text file with track URIs (one per line):
-
-```text
-spotify:track:4iV5W9uYEdYUVa79Axb7Rh
-spotify:track:1301WleyT98MSxVHPZCA6M
-```
-
-Then run:
+### List Tracks from a Playlist
 
 ```bash
-python -m src.main playlist move --file tracks.txt --from SOURCE_PLAYLIST_ID --to DEST_PLAYLIST_ID
+# Using playlist URL
+sak playlist list --url "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
+
+# Using playlist ID
+sak playlist list --id 37i9dQZF1DXcBWIGoYBM5M
+```
+
+Output (one track per line):
+```
+Artist Name - Track Title
+Another Artist - Another Track
+```
+
+### Search for Track URIs
+
+Pipe `Artist - Title` lines to get Spotify URIs:
+
+```bash
+echo "Daft Punk - Get Lucky" | sak playlist search
+# Output: spotify:track:2Foc5Q5nqNiosCNqttzHof
+```
+
+### Move Tracks Between Playlists
+
+```bash
+# From a file
+sak playlist move --file tracks.txt --from SOURCE_ID --to DEST_ID
+
+# Or pipe URIs directly
+sak playlist list --id SOURCE_ID | sak playlist search | sak playlist move --from SOURCE_ID --to DEST_ID
 ```
 
 ## 🧪 Development

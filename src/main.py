@@ -89,5 +89,39 @@ def search():
         else:
             err_console.print(f"[red]Not found:[/] {artist} - {title}")
 
+@playlist_app.command(name="list")
+def list_tracks(
+    url: Optional[str] = typer.Option(None, "--url", "-u", help="Spotify playlist URL"),
+    playlist_id: Optional[str] = typer.Option(None, "--id", "-i", help="Spotify playlist ID")
+):
+    """List tracks from a playlist as 'Artist - Title' lines."""
+    import re
+    
+    if url:
+        match = re.search(r'playlist/([a-zA-Z0-9]+)', url)
+        if not match:
+            err_console.print("[bold red]Error:[/] Invalid playlist URL")
+            raise typer.Exit(1)
+        playlist_id = match.group(1)
+    
+    if not playlist_id:
+        err_console.print("[bold red]Error:[/] Provide --url or --id")
+        raise typer.Exit(1)
+    
+    try:
+        sp = get_spotify()
+        results = sp.playlist_tracks(playlist_id)
+        while results:
+            for item in results['items']:
+                track = item['track']
+                if track:  # Can be None for local/unavailable tracks
+                    artists = ', '.join([a['name'] for a in track['artists']])
+                    print(f"{artists} - {track['name']}")
+            results = sp.next(results) if results.get('next') else None
+    except Exception as e:
+        err_console.print(f"[bold red]Error:[/] {str(e)}")
+        raise typer.Exit(1)
+
 if __name__ == "__main__":
     app()
+
