@@ -25,3 +25,18 @@ def move_tracks(sp: spotipy.Spotify, track_uris: List[str], source_id: str, dest
         sp.playlist_remove_all_occurrences_of_items(source_id, batch)
         
     console.print(f"[green]Successfully moved {len(track_uris)} tracks.[/]")
+
+def add_tracks(sp: spotipy.Spotify, track_uris: List[str], playlist_id: str):
+    """
+    Add tracks to a playlist.
+    Uses batching to minimize API calls (Spotify limit: 100 per call).
+    """
+    if not track_uris:
+        return
+
+    batch_size = 100
+    for i in range(0, len(track_uris), batch_size):
+        batch = track_uris[i:i + batch_size]
+        sp.playlist_add_items(playlist_id, batch)
+        
+    console.print(f"[green]Successfully added {len(track_uris)} tracks.[/]")

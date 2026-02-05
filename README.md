@@ -9,6 +9,7 @@
 
 - **List Tracks** — Export playlist contents as `Artist - Title` lines
 - **Search Tracks** — Find Spotify URIs from `Artist - Title` input
+- **Add Tracks** — Batch add tracks to playlists
 - **Move Tracks** — Bulk move tracks between playlists
 - **Pipeable** — Unix-friendly: pipe commands together for powerful workflows
 - **Efficient** — Batches API calls (100 tracks per request) to avoid rate limits
@@ -69,6 +70,16 @@ Pipe `Artist - Title` lines to get Spotify URIs:
 ```bash
 echo "Daft Punk - Get Lucky" | sak playlist search
 # Output: spotify:track:2Foc5Q5nqNiosCNqttzHof
+```
+
+### Add Tracks to a Playlist
+
+```bash
+# From a file
+sak playlist add --file tracks.txt --id DEST_ID
+
+# Direct piping: List -> Search -> Add
+sak playlist list --id SOURCE_ID | sak playlist search | sak playlist add --id DEST_ID
 ```
 
 ### Move Tracks Between Playlists

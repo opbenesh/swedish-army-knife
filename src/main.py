@@ -122,6 +122,54 @@ def list_tracks(
         err_console.print(f"[bold red]Error:[/] {str(e)}")
         raise typer.Exit(1)
 
+@playlist_app.command(name="add")
+def add_tracks_to_playlist(
+    tracks_file: Optional[Path] = typer.Option(None, "--file", "-f", help="File containing track URIs/IDs, one per line. If not provided, reads from stdin."),
+    url: Optional[str] = typer.Option(None, "--url", "-u", help="Spotify playlist URL"),
+    playlist_id: Optional[str] = typer.Option(None, "--id", "-i", help="Spotify playlist ID")
+):
+    """Add tracks to a playlist. Reads track URIs from file or stdin."""
+    import re
+    from .commands.playlist import add_tracks as do_add_tracks
+
+    # 1. Resolve Playlist ID
+    if url:
+        match = re.search(r'playlist/([a-zA-Z0-9]+)', url)
+        if not match:
+            err_console.print("[bold red]Error:[/] Invalid playlist URL")
+            raise typer.Exit(1)
+        playlist_id = match.group(1)
+    
+    if not playlist_id:
+        err_console.print("[bold red]Error:[/] Provide --url or --id")
+        raise typer.Exit(1)
+
+    # 2. Get Tracks
+    if tracks_file:
+        if not tracks_file.exists():
+            err_console.print(f"[bold red]Error:[/] File {tracks_file} does not exist.")
+            raise typer.Exit(1)
+        with open(tracks_file, "r") as f:
+            tracks = [line.strip() for line in f if line.strip()]
+    else:
+        # Read from stdin
+        if is_interactive():
+            err_console.print("[bold red]Error:[/] No input provided. Use --file or pipe track URIs via stdin.")
+            raise typer.Exit(1)
+        tracks = [line.strip() for line in sys.stdin if line.strip()]
+        
+    if not tracks:
+        console.print("[yellow]No tracks found.[/]")
+        return
+
+    # 3. Add to Playlist
+    try:
+        sp = get_spotify()
+        do_add_tracks(sp, tracks, playlist_id)
+    except Exception as e:
+        err_console.print(f"[bold red]Add Failed:[/] {str(e)}")
+        raise typer.Exit(1)
+
 if __name__ == "__main__":
     app()
 
