@@ -1,0 +1,1 @@
+- [x] Implement 'text' output format for playlist search

@@ -16,7 +16,7 @@ def test_search_output_id(mock_spotify):
     """Test search command with --output id"""
     mock_spotify.search.return_value = {
         'tracks': {
-            'items': [{'uri': 'spotify:track:12345'}]
+            'items': [{'uri': 'spotify:track:12345', 'id': '12345'}]
         }
     }
     with patch('src.main.is_interactive', return_value=False):
@@ -56,3 +56,22 @@ def test_list_output_uri(mock_spotify):
 
     assert result.exit_code == 0
     assert "spotify:track:12345" in result.stdout
+
+def test_search_output_text(mock_spotify):
+    """Test search command with --output text"""
+    mock_spotify.search.return_value = {
+        'tracks': {
+            'items': [{
+                'uri': 'spotify:track:12345',
+                'id': '12345',
+                'name': 'Get Lucky',
+                'artists': [{'name': 'Daft Punk'}]
+            }]
+        }
+    }
+    with patch('src.main.is_interactive', return_value=False):
+        result = runner.invoke(app, ["playlist", "search", "--output", "text"], input="Daft Punk - Get Lucky\n")
+
+        assert result.exit_code == 0
+        # Should output "Artist - Title"
+        assert "Daft Punk - Get Lucky" in result.stdout
