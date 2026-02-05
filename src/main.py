@@ -82,8 +82,10 @@ def _search_worker(sp, line: str):
         return None
 
 @playlist_app.command(name="search")
-def search():
-    """Search for tracks and output their URIs. Reads 'Artist - Title' lines from stdin."""
+def search(
+    output: str = typer.Option("uri", "--output", "-o", help="Output format: uri (default), id")
+):
+    """Search for tracks and output their URIs (default) or IDs. Reads 'Artist - Title' lines from stdin."""
     if is_interactive():
         err_console.print("[bold red]Error:[/] No input provided. Pipe 'Artist - Title' lines via stdin.")
         raise typer.Exit(1)
@@ -105,14 +107,18 @@ def search():
         for future in futures:
             result = future.result()
             if result:
-                print(result)
+                if output == "id":
+                    print(result.replace("spotify:track:", ""))
+                else:
+                    print(result)
 
 @playlist_app.command(name="list")
 def list_tracks(
     url: Optional[str] = typer.Option(None, "--url", "-u", help="Spotify playlist URL"),
-    playlist_id: Optional[str] = typer.Option(None, "--id", "-i", help="Spotify playlist ID")
+    playlist_id: Optional[str] = typer.Option(None, "--id", "-i", help="Spotify playlist ID"),
+    output: str = typer.Option("text", "--output", "-o", help="Output format: text (default), uri, id")
 ):
-    """List tracks from a playlist as 'Artist - Title' lines."""
+    """List tracks from a playlist. Default output is 'Artist - Title', optionally output URIs or IDs."""
     import re
     
     if url:
@@ -133,8 +139,13 @@ def list_tracks(
             for item in results['items']:
                 track = item['track']
                 if track:  # Can be None for local/unavailable tracks
-                    artists = ', '.join([a['name'] for a in track['artists']])
-                    print(f"{artists} - {track['name']}")
+                    if output == "id":
+                        print(track['id'])
+                    elif output == "uri":
+                        print(track['uri'])
+                    else:
+                        artists = ', '.join([a['name'] for a in track['artists']])
+                        print(f"{artists} - {track['name']}")
             results = sp.next(results) if results.get('next') else None
     except Exception as e:
         err_console.print(f"[bold red]Error:[/] {str(e)}")
