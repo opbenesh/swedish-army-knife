@@ -73,7 +73,7 @@ def _search_worker(sp, line: str):
         result = sp.search(q=f'artist:{artist} track:{title}', type='track', limit=1)
 
         if result['tracks']['items']:
-            return result['tracks']['items'][0]['uri']
+            return result['tracks']['items'][0]
         else:
             err_console.print(f"[red]Not found:[/] {artist} - {title}")
             return None
@@ -83,7 +83,7 @@ def _search_worker(sp, line: str):
 
 @playlist_app.command(name="search")
 def search(
-    output: str = typer.Option("uri", "--output", "-o", help="Output format: uri (default), id")
+    output: str = typer.Option("uri", "--output", "-o", help="Output format: uri (default), id, text")
 ):
     """Search for tracks and output their URIs (default) or IDs. Reads 'Artist - Title' lines from stdin."""
     if is_interactive():
@@ -105,12 +105,15 @@ def search(
         futures = [executor.submit(_search_worker, sp, line) for line in lines]
         
         for future in futures:
-            result = future.result()
-            if result:
+            track = future.result()
+            if track:
                 if output == "id":
-                    print(result.replace("spotify:track:", ""))
+                    print(track['id'])
+                elif output == "text":
+                    artists = ', '.join([a['name'] for a in track['artists']])
+                    print(f"{artists} - {track['name']}")
                 else:
-                    print(result)
+                    print(track['uri'])
 
 @playlist_app.command(name="list")
 def list_tracks(

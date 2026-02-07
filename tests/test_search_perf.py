@@ -31,7 +31,10 @@ def test_search_parallel_performance(mocker):
             return {
                 'tracks': {
                     'items': [{
-                        'uri': f"spotify:track:{idx}"
+                        'uri': f"spotify:track:{idx}",
+                        'id': f"{idx}",
+                        'name': f"Title{idx}",
+                        'artists': [{'name': f"Artist{idx}"}]
                     }]
                 }
             }
