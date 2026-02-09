@@ -1,11 +1,12 @@
 import typer
 import sys
+import json
 import concurrent.futures
 from pathlib import Path
 from typing import Optional
 from rich.console import Console
 from .spotify_client import get_spotify
-from .commands.playlist import move_tracks as do_move_tracks
+from .commands.playlist import move_tracks as do_move_tracks, create_playlist as do_create_playlist
 
 
 app = typer.Typer(help="Swedish Army Knife for Spotify actions.")
@@ -27,6 +28,19 @@ def status():
         console.print(f"[bold green]Connected![/] Logged in as: [cyan]{user['display_name']}[/] ({user['id']})")
     except Exception as e:
         err_console.print(f"[bold red]Status Failed:[/] {str(e)}")
+
+@playlist_app.command(name="create")
+def create(
+    name: str = typer.Option(..., "--name", "-n", help="Name of the new playlist.")
+):
+    """Create a new playlist."""
+    try:
+        sp = get_spotify()
+        uri = do_create_playlist(sp, name)
+        console.print(uri)
+    except Exception as e:
+        err_console.print(f"[bold red]Create Failed:[/] {str(e)}")
+        raise typer.Exit(1)
 
 @playlist_app.command(name="move")
 def move(
@@ -83,9 +97,13 @@ def _search_worker(sp, line: str):
 
 @playlist_app.command(name="search")
 def search(
-    output: str = typer.Option("uri", "--output", "-o", help="Output format: uri (default), id, text")
+    output: str = typer.Option("uri", "--output", "-o", help="Output format: uri (default), id, text, json"),
+    format_opt: Optional[str] = typer.Option(None, "--format", help="Alias for --output")
 ):
     """Search for tracks and output their URIs (default) or IDs. Reads 'Artist - Title' lines from stdin."""
+    if format_opt:
+        output = format_opt
+
     if is_interactive():
         err_console.print("[bold red]Error:[/] No input provided. Pipe 'Artist - Title' lines via stdin.")
         raise typer.Exit(1)
@@ -112,6 +130,16 @@ def search(
                 elif output == "text":
                     artists = ', '.join([a['name'] for a in track['artists']])
                     print(f"{artists} - {track['name']}")
+                elif output == "json":
+                    artists = ', '.join([a['name'] for a in track['artists']])
+                    data = {
+                        "uri": track['uri'],
+                        "id": track['id'],
+                        "name": track['name'],
+                        "artists": artists,
+                        "release_date": track['album'].get('release_date')
+                    }
+                    print(json.dumps(data))
                 else:
                     print(track['uri'])
 

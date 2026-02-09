@@ -184,3 +184,15 @@ def test_is_interactive(mocker):
 
     mocker.patch("sys.stdin.isatty", return_value=False)
     assert is_interactive() is False
+
+def test_create_playlist_command(mocker, mock_consoles):
+    mock_console, _ = mock_consoles
+    mock_spotify = mocker.patch("src.main.get_spotify")
+    mock_create = mocker.patch("src.main.do_create_playlist")
+    mock_create.return_value = "spotify:playlist:new_id"
+
+    result = runner.invoke(app, ["playlist", "create", "--name", "New Playlist"])
+
+    assert result.exit_code == 0
+    mock_console.print.assert_called_once_with("spotify:playlist:new_id")
+    mock_create.assert_called_once_with(mock_spotify.return_value, "New Playlist")

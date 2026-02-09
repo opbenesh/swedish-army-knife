@@ -40,3 +40,11 @@ def add_tracks(sp: spotipy.Spotify, track_uris: List[str], playlist_id: str):
         sp.playlist_add_items(playlist_id, batch)
         
     console.print(f"[green]Successfully added {len(track_uris)} tracks.[/]")
+
+def create_playlist(sp: spotipy.Spotify, name: str) -> str:
+    """
+    Create a new playlist for the current user and return its URI.
+    """
+    user = sp.current_user()
+    playlist = sp.user_playlist_create(user['id'], name)
+    return playlist['uri']
