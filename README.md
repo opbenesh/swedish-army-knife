@@ -54,6 +54,13 @@ sak playlist create --name "My New Playlist"
 # Output: spotify:playlist:NEW_ID
 ```
 
+### Find a Playlist ID by Name
+
+```bash
+sak playlist find "My Playlist"
+# Output: 37i9dQZF1DXcBWIGoYBM5M
+``````
+
 ### List Tracks from a Playlist
 
 ```bash
