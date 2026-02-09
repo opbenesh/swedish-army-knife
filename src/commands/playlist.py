@@ -1,4 +1,4 @@
-from typing import List, Generator, Optional
+from typing import List, Generator, Optional, Set
 import spotipy
 import concurrent.futures
 from rich.console import Console
@@ -7,18 +7,60 @@ from rapidfuzz import process, fuzz
 console = Console()
 err_console = Console(stderr=True)
 
-def move_tracks(sp: spotipy.Spotify, track_uris: List[str], source_id: str, dest_id: str):
+def get_playlist_track_uris(sp: spotipy.Spotify, playlist_id: str) -> Set[str]:
+    """Fetch all track URIs from a playlist, handling pagination."""
+    track_uris = set()
+    results = sp.playlist_tracks(playlist_id)
+    while results:
+        for item in results['items']:
+            track = item['track']
+            if track and track.get('uri'):
+                track_uris.add(track['uri'])
+        results = sp.next(results) if results.get('next') else None
+    return track_uris
+
+def normalize_track_uri(track_id_or_uri: str) -> str:
+    """Ensure a track string is a full Spotify URI."""
+    if track_id_or_uri.startswith("spotify:track:"):
+        return track_id_or_uri
+    return f"spotify:track:{track_id_or_uri}"
+
+def move_tracks(sp: spotipy.Spotify, track_uris: List[str], source_id: str, dest_id: str, strict: bool = False):
     """
     Move tracks from source playlist to destination playlist.
     Uses batching to minimize API calls (Spotify limit: 100 per call).
+
+    If strict is True, only moves tracks that actually exist in the source playlist.
     """
     if not track_uris:
         return
 
+    tracks_to_move = track_uris
+    if strict:
+        source_uris = get_playlist_track_uris(sp, source_id)
+
+        # Filter tracks: normalize both for comparison
+        filtered_tracks = []
+        skipped_count = 0
+        for track in track_uris:
+            if normalize_track_uri(track) in source_uris:
+                filtered_tracks.append(track)
+            else:
+                skipped_count += 1
+
+        if skipped_count > 0:
+            console.print(f"[yellow]Strict Mode: Skipped {skipped_count} tracks not found in source playlist.[/]")
+
+        tracks_to_move = filtered_tracks
+
+    if not tracks_to_move:
+        console.print("[yellow]No tracks to move after filtering.[/]")
+        return
+
     # Batching logic
     batch_size = 100
-    for i in range(0, len(track_uris), batch_size):
-        batch = track_uris[i:i + batch_size]
+    for i in range(0, len(tracks_to_move), batch_size):
+        batch = tracks_to_move[i:i + batch_size]
         
         # 1. Add to destination
         sp.playlist_add_items(dest_id, batch)
@@ -27,7 +69,7 @@ def move_tracks(sp: spotipy.Spotify, track_uris: List[str], source_id: str, dest
         # Note: We use playlist_remove_all_occurrences_of_items to be efficient
         sp.playlist_remove_all_occurrences_of_items(source_id, batch)
         
-    console.print(f"[green]Successfully moved {len(track_uris)} tracks.[/]")
+    console.print(f"[green]Successfully moved {len(tracks_to_move)} tracks.[/]")
 
 def add_tracks(sp: spotipy.Spotify, track_uris: List[str], playlist_id: str):
     """

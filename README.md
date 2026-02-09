@@ -119,6 +119,9 @@ sak playlist list --id SOURCE_ID | sak playlist search | sak playlist add --id D
 # From a file
 sak playlist move --file tracks.txt --from SOURCE_ID --to DEST_ID
 
+# Use --strict to only move tracks that actually exist in the source playlist
+sak playlist move --file tracks.txt --from SOURCE_ID --to DEST_ID --strict
+
 # Or pipe URIs directly
 sak playlist list --id SOURCE_ID | sak playlist search | sak playlist move --from SOURCE_ID --to DEST_ID
 ```

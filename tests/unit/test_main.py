@@ -199,3 +199,14 @@ def test_create_playlist_command(mocker, mock_consoles):
     assert result.exit_code == 0
     mock_console.print.assert_called_once_with("spotify:playlist:new_id")
     mock_create.assert_called_once_with(mock_spotify.return_value, "New Playlist")
+
+def test_move_command_strict(mocker):
+    mock_move = mocker.patch("src.main.do_move_tracks")
+    mock_spotify = mocker.patch("src.main.get_spotify")
+    mocker.patch("src.main.is_interactive", return_value=False)
+
+    input_tracks = "spotify:track:123"
+    result = runner.invoke(app, ["playlist", "move", "--from", "src_id", "--to", "dst_id", "--strict"], input=input_tracks)
+
+    assert result.exit_code == 0
+    mock_move.assert_called_once_with(mock_spotify.return_value, ["spotify:track:123"], "src_id", "dst_id", strict=True)
