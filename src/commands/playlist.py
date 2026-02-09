@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import spotipy
 from rich.console import Console
 
@@ -48,3 +48,18 @@ def create_playlist(sp: spotipy.Spotify, name: str) -> str:
     user = sp.current_user()
     playlist = sp.user_playlist_create(user['id'], name)
     return playlist['uri']
+
+def find_playlist(sp: spotipy.Spotify, name: str) -> Optional[str]:
+    """
+    Find a playlist ID by its name.
+    """
+    results = sp.current_user_playlists()
+    while results:
+        for item in results['items']:
+            if item['name'] == name:
+                return item['id']
+        if results.get('next'):
+            results = sp.next(results)
+        else:
+            results = None
+    return None

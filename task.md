@@ -10,3 +10,11 @@
     - [x] Write unit tests for JSON output format
 - [x] Update `README.md` with new features
 - [x] Complete pre-commit steps
+
+## Playlist Management
+- [x] `sak status` - Check connection status
+- [x] `sak playlist list` - List tracks from a playlist
+- [x] `sak playlist search` - Search for track URIs from text input
+- [x] `sak playlist add` - Add tracks to a playlist
+- [x] `sak playlist move` - Move tracks between playlists
+- [x] `sak playlist find` - Look up a playlist ID by its name

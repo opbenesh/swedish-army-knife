@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 from rich.console import Console
 from .spotify_client import get_spotify
-from .commands.playlist import move_tracks as do_move_tracks, create_playlist as do_create_playlist
+from .commands.playlist import move_tracks as do_move_tracks, create_playlist as do_create_playlist, find_playlist as do_find_playlist
 
 
 app = typer.Typer(help="Swedish Army Knife for Spotify actions.")
@@ -228,6 +228,25 @@ def add_tracks_to_playlist(
         do_add_tracks(sp, tracks, playlist_id)
     except Exception as e:
         err_console.print(f"[bold red]Add Failed:[/] {str(e)}")
+        raise typer.Exit(1)
+
+@playlist_app.command(name="find")
+def find_playlist(
+    name: str = typer.Argument(..., help="The name of the playlist to find.")
+):
+    """Find a playlist ID by its name."""
+    try:
+        sp = get_spotify()
+        playlist_id = do_find_playlist(sp, name)
+        if playlist_id:
+            console.print(playlist_id)
+        else:
+            err_console.print(f"[bold red]Error:[/] Playlist '{name}' not found.")
+            raise typer.Exit(1)
+    except typer.Exit:
+        raise
+    except Exception as e:
+        err_console.print(f"[bold red]Find Failed:[/] {str(e)}")
         raise typer.Exit(1)
 
 if __name__ == "__main__":
