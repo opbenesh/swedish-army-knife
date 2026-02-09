@@ -1,7 +1,6 @@
 import typer
 import sys
 import json
-<<<<<<< HEAD
 import concurrent.futures
 from pathlib import Path
 from typing import Optional
@@ -52,9 +51,13 @@ def create(
 def move(
     tracks_file: Optional[Path] = typer.Option(None, "--file", "-f", help="File containing track URIs/IDs, one per line. If not provided, reads from stdin."),
     source: str = typer.Option(..., "--from", "-s", help="Source playlist ID."),
-    dest: str = typer.Option(..., "--to", "-d", help="Destination playlist ID.")
+    dest: str = typer.Option(..., "--to", "-d", help="Destination playlist ID."),
+    strict: bool = typer.Option(False, "--strict", help="Only move tracks that exist in the source playlist.")
 ):
-    """Move tracks from one playlist to another. Reads track URIs from file or stdin."""
+    """Move tracks from one playlist to another. Reads track URIs from file or stdin.
+
+    If --strict is used, it verifies tracks exist in the source playlist before moving.
+    """
     if tracks_file:
         if not tracks_file.exists():
             err_console.print(f"[bold red]Error:[/] File {tracks_file} does not exist.")
@@ -74,7 +77,7 @@ def move(
         
     try:
         sp = get_spotify()
-        do_move_tracks(sp, tracks, source, dest)
+        do_move_tracks(sp, tracks, source, dest, strict=strict)
     except Exception as e:
         err_console.print(f"[bold red]Move Failed:[/] {str(e)}")
 
