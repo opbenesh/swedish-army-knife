@@ -2,3 +2,4 @@ spotipy
 typer
 python-dotenv
 rich
+rapidfuzz
