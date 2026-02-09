@@ -95,6 +95,14 @@ echo "Daft Punk - Get Lucky" | sak playlist search --format json
 # Output: {"uri": "spotify:track:2Foc...", "release_date": "2013-05-17", ...}
 ```
 
+#### Search within a Playlist
+
+You can also restrict the search to a specific playlist using the `--in-playlist` flag. This uses fuzzy matching locally, which is more efficient for large lists and prevents finding tracks outside your source playlist:
+
+```bash
+cat tracklist.txt | sak playlist search --in-playlist <playlist_id>
+```
+
 ### Add Tracks to a Playlist
 
 ```bash

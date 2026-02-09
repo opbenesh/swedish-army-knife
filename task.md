@@ -15,6 +15,12 @@
 - [x] `sak status` - Check connection status
 - [x] `sak playlist list` - List tracks from a playlist
 - [x] `sak playlist search` - Search for track URIs from text input
+    - [x] Support `--in-playlist` for fuzzy matching
+    - [x] Support `--format json` for metadata
 - [x] `sak playlist add` - Add tracks to a playlist
 - [x] `sak playlist move` - Move tracks between playlists
 - [x] `sak playlist find` - Look up a playlist ID by its name
+
+## Internal Improvements
+- [x] Refactor search logic to `src/commands/playlist.py`
+- [x] Integrate `rapidfuzz` for fuzzy matching

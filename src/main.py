@@ -6,7 +6,12 @@ from pathlib import Path
 from typing import Optional
 from rich.console import Console
 from .spotify_client import get_spotify
-from .commands.playlist import move_tracks as do_move_tracks, create_playlist as do_create_playlist, find_playlist as do_find_playlist
+from .commands.playlist import (
+    move_tracks as do_move_tracks, 
+    create_playlist as do_create_playlist, 
+    find_playlist as do_find_playlist,
+    search_tracks as do_search_tracks
+)
 
 
 app = typer.Typer(help="Swedish Army Knife for Spotify actions.")
@@ -72,33 +77,11 @@ def move(
     except Exception as e:
         err_console.print(f"[bold red]Move Failed:[/] {str(e)}")
 
-def _search_worker(sp, line: str):
-    line = line.strip()
-    if not line:
-        return None
-
-    # Parse "Artist - Title" format
-    if " - " not in line:
-        err_console.print(f"[yellow]Skipping invalid format:[/] {line}")
-        return None
-
-    artist, title = line.split(" - ", 1)
-    try:
-        result = sp.search(q=f'artist:{artist} track:{title}', type='track', limit=1)
-
-        if result['tracks']['items']:
-            return result['tracks']['items'][0]
-        else:
-            err_console.print(f"[red]Not found:[/] {artist} - {title}")
-            return None
-    except Exception as e:
-        err_console.print(f"[red]Error searching for:[/] {line} - {str(e)}")
-        return None
-
 @playlist_app.command(name="search")
 def search(
     output: str = typer.Option("uri", "--output", "-o", help="Output format: uri (default), id, text, json"),
-    format_opt: Optional[str] = typer.Option(None, "--format", help="Alias for --output")
+    format_opt: Optional[str] = typer.Option(None, "--format", help="Alias for --output"),
+    in_playlist: Optional[str] = typer.Option(None, "--in-playlist", help="Restrict search to a specific playlist ID.")
 ):
     """Search for tracks and output their URIs (default) or IDs. Reads 'Artist - Title' lines from stdin."""
     if format_opt:
@@ -116,32 +99,26 @@ def search(
     
     lines = sys.stdin.readlines()
 
-    # Use ThreadPoolExecutor for parallel processing
-    # Limit workers to avoid rate limits
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-        # Submit all tasks and preserve order
-        futures = [executor.submit(_search_worker, sp, line) for line in lines]
-        
-        for future in futures:
-            track = future.result()
-            if track:
-                if output == "id":
-                    print(track['id'])
-                elif output == "text":
-                    artists = ', '.join([a['name'] for a in track['artists']])
-                    print(f"{artists} - {track['name']}")
-                elif output == "json":
-                    artists = ', '.join([a['name'] for a in track['artists']])
-                    data = {
-                        "uri": track['uri'],
-                        "id": track['id'],
-                        "name": track['name'],
-                        "artists": artists,
-                        "release_date": track['album'].get('release_date')
-                    }
-                    print(json.dumps(data))
-                else:
-                    print(track['uri'])
+    # Use do_search_tracks generator which handles both global and playlist-specific search
+    for track in do_search_tracks(sp, lines, playlist_id=in_playlist):
+        if track:
+            if output == "id":
+                print(track['id'])
+            elif output == "text":
+                artists = ', '.join([a['name'] for a in track['artists']])
+                print(f"{artists} - {track['name']}")
+            elif output == "json":
+                artists = ', '.join([a['name'] for a in track['artists']])
+                data = {
+                    "uri": track['uri'],
+                    "id": track['id'],
+                    "name": track['name'],
+                    "artists": artists,
+                    "release_date": track['album'].get('release_date')
+                }
+                print(json.dumps(data))
+            else:
+                print(track['uri'])
 
 @playlist_app.command(name="list")
 def list_tracks(

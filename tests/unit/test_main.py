@@ -9,6 +9,9 @@ runner = CliRunner()
 def mock_consoles(mocker):
     mock_console = mocker.patch("src.main.console")
     mock_err_console = mocker.patch("src.main.err_console")
+    # Also mock consoles in playlist.py as they are used by search logic
+    mocker.patch("src.commands.playlist.console", mock_console)
+    mocker.patch("src.commands.playlist.err_console", mock_err_console)
     return mock_console, mock_err_console
 
 def test_status_command(mocker, mock_consoles):
