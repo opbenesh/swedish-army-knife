@@ -47,6 +47,13 @@ On first run, a browser window will open for Spotify OAuth authorization.
 
 ## 📖 Usage
 
+### Create a Playlist
+
+```bash
+sak playlist create --name "My New Playlist"
+# Output: spotify:playlist:NEW_ID
+```
+
 ### List Tracks from a Playlist
 
 ```bash
@@ -70,6 +77,15 @@ Pipe `Artist - Title` lines to get Spotify URIs:
 ```bash
 echo "Daft Punk - Get Lucky" | sak playlist search
 # Output: spotify:track:2Foc5Q5nqNiosCNqttzHof
+```
+
+#### Search with Metadata (JSON)
+
+Use `--format json` to get detailed track metadata including release dates:
+
+```bash
+echo "Daft Punk - Get Lucky" | sak playlist search --format json
+# Output: {"uri": "spotify:track:2Foc...", "release_date": "2013-05-17", ...}
 ```
 
 ### Add Tracks to a Playlist

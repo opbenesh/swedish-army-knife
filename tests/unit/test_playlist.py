@@ -27,3 +27,14 @@ def test_move_tracks_empty(mocker):
     
     sp.playlist_add_items.assert_not_called()
     sp.playlist_remove_all_occurrences_of_items.assert_not_called()
+
+def test_create_playlist(mocker):
+    from src.commands.playlist import create_playlist
+    sp = MagicMock()
+    sp.current_user.return_value = {"id": "user123"}
+    sp.user_playlist_create.return_value = {"uri": "spotify:playlist:new_id"}
+
+    uri = create_playlist(sp, "New Playlist")
+
+    assert uri == "spotify:playlist:new_id"
+    sp.user_playlist_create.assert_called_once_with("user123", "New Playlist")
