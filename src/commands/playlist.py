@@ -66,7 +66,6 @@ def find_playlist(sp: spotipy.Spotify, name: str) -> Optional[str]:
         else:
             results = None
     return None
-
 def _search_worker(sp: spotipy.Spotify, line: str) -> Optional[dict]:
     line = line.strip()
     if not line:

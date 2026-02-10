@@ -1,6 +1,7 @@
 import typer
 import sys
 import json
+<<<<<<< HEAD
 import concurrent.futures
 from pathlib import Path
 from typing import Optional
@@ -228,4 +229,3 @@ def find_playlist(
 
 if __name__ == "__main__":
     app()
-
