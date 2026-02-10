@@ -11,6 +11,7 @@
 - [x] Update `README.md` with new features
 - [x] Complete pre-commit steps
 
+<<<<<<< HEAD
 ## Playlist Management
 - [x] `sak status` - Check connection status
 - [x] `sak playlist list` - List tracks from a playlist
@@ -24,3 +25,4 @@
 ## Internal Improvements
 - [x] Refactor search logic to `src/commands/playlist.py`
 - [x] Integrate `rapidfuzz` for fuzzy matching
+- [x] Write comprehensive unit tests

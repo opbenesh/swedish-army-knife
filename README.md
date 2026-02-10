@@ -59,7 +59,7 @@ sak playlist create --name "My New Playlist"
 ```bash
 sak playlist find "My Playlist"
 # Output: 37i9dQZF1DXcBWIGoYBM5M
-``````
+```
 
 ### List Tracks from a Playlist
 
