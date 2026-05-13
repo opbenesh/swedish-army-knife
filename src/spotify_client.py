@@ -1,8 +1,10 @@
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
-from .config import settings
 import sys
+
+import spotipy
 from rich.console import Console
+from spotipy.oauth2 import SpotifyOAuth
+
+from .config import settings
 
 console = Console()
 err_console = Console(stderr=True)
@@ -11,7 +13,7 @@ class SpotifyClient:
     def __init__(self, scope: str = "playlist-modify-public playlist-modify-private"):
         if not settings.is_spotify_configured:
             err_console.print("[bold red]Error:[/] Spotify credentials not found in .env file.")
-            err_console.print("Please update .env with SPOTIPY_CLIENT_ID and SPOTIPY_CLIENT_SECRET.")
+            err_console.print("Set SPOTIPY_CLIENT_ID and SPOTIPY_CLIENT_SECRET in .env.")
             sys.exit(1)
             
         self.sp_oauth = SpotifyOAuth(
@@ -27,7 +29,7 @@ class SpotifyClient:
         
         if not token_info:
             console.print("[yellow]Initial authentication required. Opening browser...[/]")
-            auth_url = self.sp_oauth.get_authorize_url()
+            self.sp_oauth.get_authorize_url()
             # In a CLI, SpotifyOAuth usually handles opening the browser automatically
             # if we use certain methods, but we can also get the client directly:
             return spotipy.Spotify(auth_manager=self.sp_oauth)

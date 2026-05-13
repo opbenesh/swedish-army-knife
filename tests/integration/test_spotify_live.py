@@ -1,5 +1,7 @@
 import os
+
 import pytest
+
 from src.spotify_client import get_spotify
 
 # Only run if explicitly enabled

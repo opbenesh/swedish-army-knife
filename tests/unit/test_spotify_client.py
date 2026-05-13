@@ -1,12 +1,13 @@
-from unittest.mock import MagicMock
 import pytest
+
 from src.spotify_client import SpotifyClient, get_spotify
+
 
 def test_spotify_client_initialization(mocker, monkeypatch):
     monkeypatch.setenv("SPOTIPY_CLIENT_ID", "test_id")
     monkeypatch.setenv("SPOTIPY_CLIENT_SECRET", "test_secret")
 
-    mock_oauth = mocker.patch("src.spotify_client.SpotifyOAuth")
+    mocker.patch("src.spotify_client.SpotifyOAuth")
 
     client = SpotifyClient()
     assert client.sp_oauth is not None

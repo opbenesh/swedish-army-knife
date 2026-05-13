@@ -1,10 +1,10 @@
 import time
-import pytest
+from unittest.mock import MagicMock
+
 from typer.testing import CliRunner
-from unittest.mock import MagicMock, patch
+
 from src.main import app
 
-runner = CliRunner()
 
 def test_search_parallel_performance(mocker):
     """
@@ -38,7 +38,7 @@ def test_search_parallel_performance(mocker):
                     }]
                 }
             }
-        except:
+        except Exception:
             return {'tracks': {'items': []}}
 
     mock_sp.search.side_effect = slow_search
@@ -46,6 +46,7 @@ def test_search_parallel_performance(mocker):
     # Patch get_spotify to return our mock
     mocker.patch("src.main.get_spotify", return_value=mock_sp)
 
+    runner = CliRunner()
     start_time = time.time()
     result = runner.invoke(app, ["playlist", "search"], input=input_data)
     end_time = time.time()
@@ -56,7 +57,7 @@ def test_search_parallel_performance(mocker):
     assert result.exit_code == 0
 
     # Verify output count
-    output_lines = [l for l in result.stdout.split("\n") if l.strip()]
+    output_lines = [ln for ln in result.stdout.split("\n") if ln.strip()]
     assert len(output_lines) == 50
 
     # Assert performance: Should be significantly faster than sequential (2.5s)

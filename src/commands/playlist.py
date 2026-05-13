@@ -1,11 +1,17 @@
-from typing import List, Generator, Optional, Set
-import spotipy
 import concurrent.futures
+from typing import Generator, List, Optional, Set
+
+import spotipy
+from rapidfuzz import fuzz, process
 from rich.console import Console
-from rapidfuzz import process, fuzz
 
 console = Console()
 err_console = Console(stderr=True)
+
+BATCH_SIZE = 100           # Spotify API per-call item limit
+MAX_SEARCH_WORKERS = 10    # ThreadPoolExecutor concurrency for global search
+FUZZY_MATCH_THRESHOLD = 60  # WRatio score minimum for playlist-restricted search (0–100)
+
 
 def get_playlist_track_uris(sp: spotipy.Spotify, playlist_id: str) -> Set[str]:
     """Fetch all track URIs from a playlist, handling pagination."""
@@ -25,10 +31,14 @@ def normalize_track_uri(track_id_or_uri: str) -> str:
         return track_id_or_uri
     return f"spotify:track:{track_id_or_uri}"
 
-def move_tracks(sp: spotipy.Spotify, track_uris: List[str], source_id: str, dest_id: str, strict: bool = False):
-    """
-    Move tracks from source playlist to destination playlist.
-    Uses batching to minimize API calls (Spotify limit: 100 per call).
+def move_tracks(
+    sp: spotipy.Spotify,
+    track_uris: List[str],
+    source_id: str,
+    dest_id: str,
+    strict: bool = False,
+):
+    """Move tracks from source to destination. Batches API calls (100 per call).
 
     If strict is True, only moves tracks that actually exist in the source playlist.
     """
@@ -49,7 +59,9 @@ def move_tracks(sp: spotipy.Spotify, track_uris: List[str], source_id: str, dest
                 skipped_count += 1
 
         if skipped_count > 0:
-            console.print(f"[yellow]Strict Mode: Skipped {skipped_count} tracks not found in source playlist.[/]")
+            console.print(
+                f"[yellow]Strict Mode: Skipped {skipped_count} tracks not in source playlist.[/]"
+            )
 
         tracks_to_move = filtered_tracks
 
@@ -57,10 +69,8 @@ def move_tracks(sp: spotipy.Spotify, track_uris: List[str], source_id: str, dest
         console.print("[yellow]No tracks to move after filtering.[/]")
         return
 
-    # Batching logic
-    batch_size = 100
-    for i in range(0, len(tracks_to_move), batch_size):
-        batch = tracks_to_move[i:i + batch_size]
+    for i in range(0, len(tracks_to_move), BATCH_SIZE):
+        batch = tracks_to_move[i:i + BATCH_SIZE]
         
         # 1. Add to destination
         sp.playlist_add_items(dest_id, batch)
@@ -79,9 +89,8 @@ def add_tracks(sp: spotipy.Spotify, track_uris: List[str], playlist_id: str):
     if not track_uris:
         return
 
-    batch_size = 100
-    for i in range(0, len(track_uris), batch_size):
-        batch = track_uris[i:i + batch_size]
+    for i in range(0, len(track_uris), BATCH_SIZE):
+        batch = track_uris[i:i + BATCH_SIZE]
         sp.playlist_add_items(playlist_id, batch)
         
     console.print(f"[green]Successfully added {len(track_uris)} tracks.[/]")
@@ -108,6 +117,8 @@ def find_playlist(sp: spotipy.Spotify, name: str) -> Optional[str]:
         else:
             results = None
     return None
+
+
 def _search_worker(sp: spotipy.Spotify, line: str) -> Optional[dict]:
     line = line.strip()
     if not line:
@@ -131,7 +142,11 @@ def _search_worker(sp: spotipy.Spotify, line: str) -> Optional[dict]:
         err_console.print(f"[red]Error searching for:[/] {line} - {str(e)}")
         return None
 
-def search_tracks(sp: spotipy.Spotify, lines: List[str], playlist_id: Optional[str] = None) -> Generator[Optional[dict], None, None]:
+def search_tracks(
+    sp: spotipy.Spotify,
+    lines: List[str],
+    playlist_id: Optional[str] = None,
+) -> Generator[Optional[dict], None, None]:
     """
     Search for tracks based on "Artist - Title" lines.
     If playlist_id is provided, restricts search to that playlist using fuzzy matching.
@@ -180,13 +195,13 @@ def search_tracks(sp: spotipy.Spotify, lines: List[str], playlist_id: Optional[s
 
             # Use fuzzy matching
             match = process.extractOne(line, search_choices, scorer=fuzz.WRatio)
-            if match and match[1] > 60: # Threshold of 60
+            if match and match[1] > FUZZY_MATCH_THRESHOLD:
                 yield track_map[match[0]]
             else:
                 err_console.print(f"[red]Not found in playlist:[/] {line}")
                 yield None
     else:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_SEARCH_WORKERS) as executor:
             # Submit all tasks and preserve order
             futures = [executor.submit(_search_worker, sp, line) for line in lines]
 

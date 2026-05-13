@@ -1,6 +1,5 @@
-import os
-import pytest
 from src.config import Settings
+
 
 def test_config_loaded_from_env(monkeypatch):
     monkeypatch.setenv("SPOTIPY_CLIENT_ID", "test_id")

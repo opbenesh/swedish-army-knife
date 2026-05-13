@@ -1,40 +1,34 @@
-import pytest
-from unittest.mock import MagicMock
-from src.commands.playlist import move_tracks
 
-def test_move_tracks_batching(mocker):
-    # Mock Spotify client
-    sp = MagicMock()
-    
-    # Track list of 150 items to test batching (max 100 per call)
+
+from src.commands.playlist import create_playlist, move_tracks
+from tests.fake_spotify import FakeSpotify
+
+
+def test_move_tracks_batching():
+    fake_sp = FakeSpotify()
+    fake_sp.add_playlist("src").add_playlist("dst")
+
     tracks = [f"spotify:track:{i}" for i in range(150)]
-    source_id = "source_playlist_id"
-    dest_id = "dest_playlist_id"
-    
-    # Execute move
-    move_tracks(sp, tracks, source_id, dest_id)
-    
-    # Verify dest additions: Should call playlist_add_items twice
-    # Batch 1: 100, Batch 2: 50
-    assert sp.playlist_add_items.call_count == 2
-    
-    # Verify source removals: Should call playlist_remove_all_occurrences_of_items twice
-    assert sp.playlist_remove_all_occurrences_of_items.call_count == 2
-    
-def test_move_tracks_empty(mocker):
-    sp = MagicMock()
-    move_tracks(sp, [], "src", "dest")
-    
-    sp.playlist_add_items.assert_not_called()
-    sp.playlist_remove_all_occurrences_of_items.assert_not_called()
+    move_tracks(fake_sp, tracks, "src", "dst")
 
-def test_create_playlist(mocker):
-    from src.commands.playlist import create_playlist
-    sp = MagicMock()
-    sp.current_user.return_value = {"id": "user123"}
-    sp.user_playlist_create.return_value = {"uri": "spotify:playlist:new_id"}
+    # 150 tracks → 2 batches of 100/50
+    assert fake_sp.call_count("playlist_add_items") == 2
+    assert fake_sp.call_count("playlist_remove_all_occurrences_of_items") == 2
+    # All tracks ended up in dst
+    assert len(fake_sp.playlist_uris("dst")) == 150
 
-    uri = create_playlist(sp, "New Playlist")
 
-    assert uri == "spotify:playlist:new_id"
-    sp.user_playlist_create.assert_called_once_with("user123", "New Playlist")
+def test_move_tracks_empty():
+    fake_sp = FakeSpotify()
+    move_tracks(fake_sp, [], "src", "dst")
+    assert fake_sp.call_count("playlist_add_items") == 0
+    assert fake_sp.call_count("playlist_remove_all_occurrences_of_items") == 0
+
+
+def test_create_playlist():
+    fake_sp = FakeSpotify()
+    uri = create_playlist(fake_sp, "New Playlist")
+    assert uri.startswith("spotify:playlist:")
+    # Playlist now exists in fake state
+    playlists = {p["name"] for p in fake_sp.current_user_playlists()["items"]}
+    assert "New Playlist" in playlists
