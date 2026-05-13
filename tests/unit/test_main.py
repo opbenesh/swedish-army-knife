@@ -200,3 +200,115 @@ def test_move_command_strict(mock_get_spotify, mocker):
     mock_move.assert_called_once_with(
         mock_get_spotify, ["spotify:track:123"], "src_id", "dst_id", strict=True
     )
+
+
+def test_move_create_creates_playlist_when_missing(mock_get_spotify, mocker):
+    mock_move = mocker.patch("src.main.do_move_tracks")
+    mocker.patch("src.main.is_interactive", return_value=False)
+
+    result = runner.invoke(
+        app,
+        ["playlist", "move", "--from", "src_id", "--to", "My New Playlist", "--create"],
+        input="spotify:track:123",
+    )
+
+    assert result.exit_code == 0
+    # Playlist was created; FakeSpotify derives the ID from the name
+    args, _ = mock_move.call_args
+    assert args[3] == "pl_my_new_playlist"
+
+
+def test_move_create_reuses_existing_playlist(mock_get_spotify, mocker):
+    mock_move = mocker.patch("src.main.do_move_tracks")
+    mocker.patch("src.main.is_interactive", return_value=False)
+    mock_get_spotify.add_playlist("existing_id", name="Existing Playlist")
+
+    result = runner.invoke(
+        app,
+        ["playlist", "move", "--from", "src_id", "--to", "Existing Playlist", "--create"],
+        input="spotify:track:123",
+    )
+
+    assert result.exit_code == 0
+    args, _ = mock_move.call_args
+    assert args[3] == "existing_id"
+
+
+def test_move_liked_auto_fetches_when_no_input(mock_get_spotify, mocker):
+    mock_move = mocker.patch("src.main.do_move_tracks")
+    mocker.patch("src.main.is_interactive", return_value=True)
+    mock_get_spotify.add_saved_tracks(["spotify:track:1", "spotify:track:2"])
+    mock_get_spotify.add_playlist("dest_id")
+
+    result = runner.invoke(app, ["playlist", "move", "--from", "liked", "--to", "dest_id"])
+
+    assert result.exit_code == 0
+    args, _ = mock_move.call_args
+    assert set(args[1]) == {"spotify:track:1", "spotify:track:2"}
+
+
+def test_move_liked_still_accepts_explicit_stdin(mock_get_spotify, mocker):
+    mock_move = mocker.patch("src.main.do_move_tracks")
+    mocker.patch("src.main.is_interactive", return_value=False)
+    mock_get_spotify.add_saved_tracks(["spotify:track:ignored"])
+
+    result = runner.invoke(
+        app,
+        ["playlist", "move", "--from", "liked", "--to", "dest_id"],
+        input="spotify:track:explicit\n",
+    )
+
+    assert result.exit_code == 0
+    args, _ = mock_move.call_args
+    assert args[1] == ["spotify:track:explicit"]
+
+
+def test_move_liked_auto_empty(mock_get_spotify, mock_consoles, mocker):
+    mock_console, _ = mock_consoles
+    mocker.patch("src.main.is_interactive", return_value=True)
+
+    result = runner.invoke(app, ["playlist", "move", "--from", "liked", "--to", "dest_id"])
+
+    assert result.exit_code == 0
+    args, _ = mock_console.print.call_args
+    assert "No liked tracks found" in args[0]
+
+
+def test_list_by_name(mock_get_spotify):
+    mock_get_spotify.add_playlist("real_id", name="My Playlist", tracks=["spotify:track:abc"])
+
+    result = runner.invoke(app, ["playlist", "list", "--id", "My Playlist", "--output", "uri"])
+
+    assert result.exit_code == 0
+    assert "spotify:track:abc" in result.stdout
+
+
+def test_add_create_flag(mock_get_spotify, mocker):
+    mock_add = mocker.patch("src.main.do_add_tracks")
+    mocker.patch("src.main.is_interactive", return_value=False)
+
+    result = runner.invoke(
+        app,
+        ["playlist", "add", "--id", "New Playlist", "--create"],
+        input="spotify:track:123\n",
+    )
+
+    assert result.exit_code == 0
+    args, _ = mock_add.call_args
+    # FakeSpotify created "pl_new_playlist"
+    assert args[2] == "pl_new_playlist"
+
+
+def test_search_in_playlist_by_name(mock_get_spotify, mocker):
+    mock_get_spotify.add_playlist("real_id", name="My Playlist")
+    mock_search = mocker.patch("src.main.do_search_tracks", return_value=[])
+    mocker.patch("src.main.is_interactive", return_value=False)
+
+    runner.invoke(
+        app,
+        ["playlist", "search", "--in-playlist", "My Playlist"],
+        input="Artist - Title\n",
+    )
+
+    _, kwargs = mock_search.call_args
+    assert kwargs["playlist_id"] == "real_id"

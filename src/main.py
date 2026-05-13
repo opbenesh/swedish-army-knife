@@ -5,6 +5,7 @@ from typing import List, Optional
 import typer
 from rich.console import Console
 
+from .commands.playlist import LIKED_SENTINEL
 from .commands.playlist import (
     add_tracks as do_add_tracks,
 )
@@ -15,7 +16,16 @@ from .commands.playlist import (
     find_playlist as do_find_playlist,
 )
 from .commands.playlist import (
+    get_liked_track_uris as do_get_liked_track_uris,
+)
+from .commands.playlist import (
     move_tracks as do_move_tracks,
+)
+from .commands.playlist import (
+    resolve_or_create_playlist_id as do_resolve_or_create,
+)
+from .commands.playlist import (
+    resolve_playlist_id as do_resolve_playlist_id,
 )
 from .commands.playlist import (
     search_tracks as do_search_tracks,
@@ -83,24 +93,48 @@ def move(
         None, "--file", "-f", help="File with track URIs/IDs, one per line. Defaults to stdin."
     ),
     source: str = typer.Option(..., "--from", "-s", help="Source playlist ID."),
-    dest: str = typer.Option(..., "--to", "-d", help="Destination playlist ID."),
+    dest: str = typer.Option(
+        ..., "--to", "-d", help="Destination playlist ID, or name when using --create."
+    ),
     strict: bool = typer.Option(
         False, "--strict", help="Only move tracks present in the source playlist."
+    ),
+    create: bool = typer.Option(
+        False, "--create", help="Treat --to as a name: find or create the playlist."
     ),
 ):
     """Move tracks from one playlist to another. Reads track URIs from file or stdin.
 
+    If --from liked and no file/stdin, all Liked Songs are fetched automatically.
     If --strict is used, it verifies tracks exist in the source playlist before moving.
+    If --create is used, --to is treated as a playlist name and created if it doesn't exist.
     """
-    tracks = _read_tracks(tracks_file)
+    liked_auto = source == LIKED_SENTINEL and tracks_file is None and is_interactive()
 
-    if not tracks:
-        console.print("[yellow]No tracks found.[/]")
-        return
+    if not liked_auto:
+        tracks = _read_tracks(tracks_file)
+        if not tracks:
+            console.print("[yellow]No tracks found.[/]")
+            return
 
     try:
         sp = get_spotify()
-        do_move_tracks(sp, tracks, source, dest, strict=strict)
+
+        if liked_auto:
+            tracks = list(do_get_liked_track_uris(sp))
+            if not tracks:
+                console.print("[yellow]No liked tracks found.[/]")
+                return
+
+        source_id = do_resolve_playlist_id(sp, source)
+
+        if create:
+            dest_id, was_created = do_resolve_or_create(sp, dest)
+            if was_created:
+                console.print(f"[green]Created playlist:[/] {dest} ({dest_id})")
+        else:
+            dest_id = do_resolve_playlist_id(sp, dest)
+        do_move_tracks(sp, tracks, source_id, dest_id, strict=strict)
     except Exception as e:
         err_console.print(f"[bold red]Move Failed:[/] {str(e)}")
         raise typer.Exit(1)
@@ -130,6 +164,9 @@ def search(
 
     lines = sys.stdin.readlines()
 
+    if in_playlist:
+        in_playlist = do_resolve_playlist_id(sp, in_playlist)
+
     for track in do_search_tracks(sp, lines, playlist_id=in_playlist):
         if track:
             print(format_track(track, output))
@@ -138,10 +175,15 @@ def search(
 @playlist_app.command(name="list")
 def list_tracks(
     url: Optional[str] = typer.Option(None, "--url", "-u", help="Spotify playlist URL"),
-    playlist_id: Optional[str] = typer.Option(None, "--id", "-i", help="Spotify playlist ID"),
+    playlist_id: Optional[str] = typer.Option(
+        None, "--id", "-i", help="Spotify playlist ID, or 'liked' for Liked Songs"
+    ),
     output: str = typer.Option("text", "--output", "-o", help="Output: text, uri, id"),
 ):
-    """List tracks from a playlist. Default output is 'Artist - Title'."""
+    """List tracks from a playlist. Default output is 'Artist - Title'.
+
+    Use --id liked to list your Liked Songs.
+    """
     if url:
         playlist_id = parse_playlist_id(url)
         if not playlist_id:
@@ -154,7 +196,11 @@ def list_tracks(
 
     try:
         sp = get_spotify()
-        results = sp.playlist_tracks(playlist_id)
+        playlist_id = do_resolve_playlist_id(sp, playlist_id)
+        if playlist_id == LIKED_SENTINEL:
+            results = sp.current_user_saved_tracks()
+        else:
+            results = sp.playlist_tracks(playlist_id)
         while results:
             for item in results["items"]:
                 track = item["track"]
@@ -172,9 +218,17 @@ def add_tracks_to_playlist(
         None, "--file", "-f", help="File with track URIs/IDs, one per line. Defaults to stdin."
     ),
     url: Optional[str] = typer.Option(None, "--url", "-u", help="Spotify playlist URL"),
-    playlist_id: Optional[str] = typer.Option(None, "--id", "-i", help="Spotify playlist ID"),
+    playlist_id: Optional[str] = typer.Option(
+        None, "--id", "-i", help="Spotify playlist ID or name."
+    ),
+    create: bool = typer.Option(
+        False, "--create", help="Create playlist by name if it doesn't exist."
+    ),
 ):
-    """Add tracks to a playlist. Reads track URIs from file or stdin."""
+    """Add tracks to a playlist. Reads track URIs from file or stdin.
+
+    If --create is used, --id is treated as a name and created if it doesn't exist.
+    """
     if url:
         playlist_id = parse_playlist_id(url)
         if not playlist_id:
@@ -193,6 +247,12 @@ def add_tracks_to_playlist(
 
     try:
         sp = get_spotify()
+        if create:
+            playlist_id, was_created = do_resolve_or_create(sp, playlist_id)
+            if was_created:
+                console.print(f"[green]Created playlist:[/] {playlist_id}")
+        else:
+            playlist_id = do_resolve_playlist_id(sp, playlist_id)
         do_add_tracks(sp, tracks, playlist_id)
     except Exception as e:
         err_console.print(f"[bold red]Add Failed:[/] {str(e)}")

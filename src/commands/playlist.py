@@ -1,5 +1,6 @@
 import concurrent.futures
-from typing import Generator, List, Optional, Set
+import re
+from typing import Generator, List, Optional, Set, Tuple
 
 import spotipy
 from rapidfuzz import fuzz, process
@@ -9,8 +10,12 @@ console = Console()
 err_console = Console(stderr=True)
 
 BATCH_SIZE = 100           # Spotify API per-call item limit
+LIKED_BATCH_SIZE = 50      # Spotify's limit for saved-tracks delete
 MAX_SEARCH_WORKERS = 10    # ThreadPoolExecutor concurrency for global search
 FUZZY_MATCH_THRESHOLD = 60  # WRatio score minimum for playlist-restricted search (0–100)
+
+LIKED_SENTINEL = "liked"
+_SPOTIFY_ID_RE = re.compile(r"[A-Za-z0-9]{22}")
 
 
 def get_playlist_track_uris(sp: spotipy.Spotify, playlist_id: str) -> Set[str]:
@@ -24,6 +29,53 @@ def get_playlist_track_uris(sp: spotipy.Spotify, playlist_id: str) -> Set[str]:
                 track_uris.add(track['uri'])
         results = sp.next(results) if results.get('next') else None
     return track_uris
+
+def resolve_playlist_id(sp: spotipy.Spotify, value: str) -> str:
+    """Resolve a playlist name or raw ID to a playlist ID.
+
+    Passes 'liked' and 22-char base62 IDs through unchanged.
+    For anything else, looks up by name; falls back to raw value if not found.
+    """
+    if value == LIKED_SENTINEL or _SPOTIFY_ID_RE.fullmatch(value):
+        return value
+    found = find_playlist(sp, value)
+    return found if found is not None else value
+
+
+def resolve_or_create_playlist_id(sp: spotipy.Spotify, value: str) -> Tuple[str, bool]:
+    """Resolve a playlist name to an ID, creating it if not found.
+
+    Returns (playlist_id, was_created).
+    22-char base62 IDs are passed through without a lookup or creation.
+    """
+    if _SPOTIFY_ID_RE.fullmatch(value):
+        return value, False
+    found = find_playlist(sp, value)
+    if found is not None:
+        return found, False
+    uri = create_playlist(sp, value)
+    return uri.split(":")[-1], True
+
+
+def get_liked_track_uris(sp: spotipy.Spotify) -> Set[str]:
+    """Fetch all liked/saved track URIs, handling pagination."""
+    uris = set()
+    results = sp.current_user_saved_tracks()
+    while results:
+        for item in results['items']:
+            track = item.get('track')
+            if track and track.get('uri'):
+                uris.add(track['uri'])
+        results = sp.next(results) if results.get('next') else None
+    return uris
+
+
+def remove_liked_tracks(sp: spotipy.Spotify, track_uris: List[str]):
+    """Batch-delete tracks from Liked Songs (50 per call)."""
+    for i in range(0, len(track_uris), LIKED_BATCH_SIZE):
+        sp.current_user_saved_tracks_delete(track_uris[i:i + LIKED_BATCH_SIZE])
+    console.print(f"[green]Removed {len(track_uris)} tracks from Liked Songs.[/]")
+
 
 def normalize_track_uri(track_id_or_uri: str) -> str:
     """Ensure a track string is a full Spotify URI."""
@@ -47,7 +99,10 @@ def move_tracks(
 
     tracks_to_move = track_uris
     if strict:
-        source_uris = get_playlist_track_uris(sp, source_id)
+        source_uris = (
+            get_liked_track_uris(sp) if source_id == LIKED_SENTINEL
+            else get_playlist_track_uris(sp, source_id)
+        )
 
         # Filter tracks: normalize both for comparison
         filtered_tracks = []
@@ -76,8 +131,10 @@ def move_tracks(
         sp.playlist_add_items(dest_id, batch)
         
         # 2. Remove from source
-        # Note: We use playlist_remove_all_occurrences_of_items to be efficient
-        sp.playlist_remove_all_occurrences_of_items(source_id, batch)
+        if source_id == LIKED_SENTINEL:
+            sp.current_user_saved_tracks_delete(batch)
+        else:
+            sp.playlist_remove_all_occurrences_of_items(source_id, batch)
         
     console.print(f"[green]Successfully moved {len(tracks_to_move)} tracks.[/]")
 

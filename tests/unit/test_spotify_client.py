@@ -40,7 +40,7 @@ def test_get_client_cached_token(mocker, monkeypatch):
     assert sp is not None
     mock_spotify.assert_called_once()
 
-def test_get_client_no_cached_token(mocker, monkeypatch, capsys):
+def test_get_client_no_cached_token(mocker, monkeypatch):
     monkeypatch.setenv("SPOTIPY_CLIENT_ID", "test_id")
     monkeypatch.setenv("SPOTIPY_CLIENT_SECRET", "test_secret")
 
@@ -48,18 +48,19 @@ def test_get_client_no_cached_token(mocker, monkeypatch, capsys):
     mock_oauth_instance = mock_oauth.return_value
     mock_oauth_instance.get_cached_token.return_value = None
     mock_oauth_instance.get_authorize_url.return_value = "http://auth.url"
+    mock_oauth_instance.parse_response_code.return_value = "fake_code"
 
+    mocker.patch("builtins.input", return_value="http://redirect.url?code=fake_code")
     mock_spotify = mocker.patch("spotipy.Spotify")
 
     client = SpotifyClient()
     sp = client.get_client()
 
-    captured = capsys.readouterr()
-    # 'Initial authentication required' is printed via console.print (stdout)
-    assert "Initial authentication required" in captured.out
-
     assert sp is not None
     mock_spotify.assert_called_once()
+    mock_oauth_instance.get_access_token.assert_called_once_with(
+        "fake_code", as_dict=False, check_cache=False
+    )
 
 def test_get_spotify_helper(mocker, monkeypatch):
     monkeypatch.setenv("SPOTIPY_CLIENT_ID", "test_id")

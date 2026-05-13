@@ -25,6 +25,7 @@ class FakeSpotify:
         self._user: dict = {"id": "testuser", "display_name": "Test User"}
         self._search_results: dict[str, dict] = {}
         self._default_search_result: Optional[dict] = None
+        self._saved_tracks: list[dict] = []
         self.calls: list[tuple] = []
 
     # ── Seed helpers ────────────────────────────────────────────────────────
@@ -44,6 +45,16 @@ class FakeSpotify:
                 normalised.append(t)
         self._playlists[playlist_id] = {"id": playlist_id, "name": name, "tracks": normalised}
         return self
+
+    def add_saved_tracks(self, uris: list[str]) -> "FakeSpotify":
+        """Seed Liked Songs with the given track URIs."""
+        for uri in uris:
+            self._saved_tracks.append({"track": _make_track(uri)})
+        return self
+
+    def saved_uris(self) -> list[str]:
+        """Convenience: return just the URIs in Liked Songs."""
+        return [item["track"]["uri"] for item in self._saved_tracks]
 
     def set_search_result(self, query: str, track: dict) -> "FakeSpotify":
         self._search_results[query] = track
@@ -72,6 +83,14 @@ class FakeSpotify:
     def playlist_tracks(self, playlist_id: str, **kwargs) -> dict:
         tracks = self._playlists.get(playlist_id, {}).get("tracks", [])
         return {"items": [{"track": t} for t in tracks], "next": None}
+
+    def current_user_saved_tracks(self, limit: int = 20, offset: int = 0) -> dict:
+        return {"items": list(self._saved_tracks), "next": None}
+
+    def current_user_saved_tracks_delete(self, tracks: list[str]) -> None:
+        self.calls.append(("current_user_saved_tracks_delete", list(tracks)))
+        uri_set = set(tracks)
+        self._saved_tracks = [i for i in self._saved_tracks if i["track"]["uri"] not in uri_set]
 
     def next(self, result: dict) -> None:
         return None

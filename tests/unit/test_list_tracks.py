@@ -45,6 +45,7 @@ def test_list_tracks_pagination():
             "items": [{"track": {"id": str(i), "uri": f"spotify:track:{i}", "name": f"Track {i}", "artists": [{"name": f"Artist {i}"}]}} for i in range(100, 150)],
             "next": None,
         }
+        sp.current_user_playlists.return_value = {"items": [], "next": None}
         sp.playlist_tracks.return_value = page1
         sp.next.return_value = page2
 
