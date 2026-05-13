@@ -3,3 +3,10 @@ repos:
     rev: v8.18.2
     hooks:
       - id: gitleaks
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format

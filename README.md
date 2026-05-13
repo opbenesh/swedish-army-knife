@@ -2,8 +2,9 @@
 
 > A personal CLI toolkit for Spotify playlist automation.
 
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/opbenesh/swedish-army-knife/actions/workflows/ci.yml/badge.svg)](https://github.com/opbenesh/swedish-army-knife/actions/workflows/ci.yml)
 
 ## ✨ Features
 
@@ -18,12 +19,12 @@
 
 ### 1. Clone & Setup
 
+Requires [uv](https://docs.astral.sh/uv/getting-started/installation/).
+
 ```bash
 git clone https://github.com/opbenesh/swedish-army-knife.git
 cd swedish-army-knife
-python3 -m venv venv
-source venv/bin/activate
-pip install -e .
+uv sync
 ```
 
 ### 2. Configure Spotify Credentials
@@ -40,7 +41,7 @@ cp .env.example .env
 ### 3. Verify Connection
 
 ```bash
-sak status
+uv run sak status
 ```
 
 On first run, a browser window will open for Spotify OAuth authorization.
@@ -130,13 +131,16 @@ sak playlist list --id SOURCE_ID | sak playlist search | sak playlist move --fro
 
 ```bash
 # Install dev dependencies
-pip install -r requirements-dev.txt
+uv sync --group dev
 
-# Run tests (unit only)
-pytest tests/unit/
+# Run tests
+uv run pytest
 
-# Run all tests including live API tests
-RUN_LIVE_TESTS=true pytest tests/
+# Lint
+uv run ruff check .
+
+# Run live API tests (requires valid .env credentials)
+RUN_LIVE_TESTS=true uv run pytest
 ```
 
 ## 📁 Project Structure
@@ -146,8 +150,14 @@ src/
 ├── main.py            # CLI entry point
 ├── spotify_client.py  # OAuth wrapper
 ├── config.py          # Environment loader
+├── utils.py           # Shared helpers (URL parsing, track formatting)
 └── commands/
     └── playlist.py    # Playlist operations
+
+tests/
+├── fake_spotify.py    # In-memory Spotify fake for testing
+├── conftest.py        # Shared fixtures
+└── unit/              # Unit tests
 ```
 
 ## 📄 License
